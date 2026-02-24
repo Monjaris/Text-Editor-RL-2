@@ -15,9 +15,12 @@ struct Cursor {
 
     bool keep_size_as_font_size = 0;
     f32 step_width = 20;
-    f32 line_height = step_width * 2;
-    Vec2 size = {25, 55};
+    f32 line_height = step_width * buffer.ln_wh_k;
+    Vec2 size = {16, 33};
 
+    enum class Flex { RIGID=1, ELASTIC, FLUID };
+    Flex flex = Flex::FLUID;
+    Flex flex_previous = Flex(0);
 
     /// @brief Get x,y,w,h components as rectangle
     Rect rect() { return {pos.x, pos.y, size.x, size.y}; }
@@ -34,7 +37,7 @@ struct Cursor {
     // Check if (ch)aracter exists (safe buffer bounds)
     bool chexist_r() {
         return bufy < buffer.vec().size()
-        && bufx + 1 < buffer.str(bufy).size();
+        && bufx < buffer.str(bufy).size();
     }
     bool chexist_l() {
         return bufy < buffer.vec().size()
@@ -76,13 +79,16 @@ struct Cursor {
 
     /// @todo implement ts
     void gotoln(uint line_no) {
+        if (line_no < 0) {
+            log "Can't go after line 0!\n"; return;
+        }
         if (line_no == buffer.vec().size()) {
             line_no = buffer.vec().size() - 1;
         }
 
-        log "Went to line " << line_no << "\n";
+        log "Went to line \033[4;1m" << line_no << "\033[0;37m(+1)\n";
         this->bufy = line_no;
-        
+
         // Clamp bufx to new line's length
         if (bufx > buffer.str(bufy).size()) {
             bufx = buffer.str(bufy).size();
@@ -110,10 +116,12 @@ struct Cursor {
         else {
             if (chexist_l() && inside_l()) {
                 this->step(-1);
-                buffer.remove(bufx, bufy);
+                if (!buffer.remove(bufx, bufy)) log "Couldn't remove!\n";
             } else if (!inside_l()) {
-                gotoln(ln()-1);
-                this->line_end();
+                if (ln()) { // goto line above if it's not first line(ln()!=0)
+                    gotoln(ln()-1);
+                    this->line_end();
+                }
             }
         }
     }
@@ -124,12 +132,12 @@ struct Cursor {
     }
 #pragma region LOOP
     void loop() {
-        if (keep_size_as_font_size) {
-            size.x = step_width;
-            size.y = line_height;
-        }
+        // if (keep_size_as_font_size) {
+            // size.x = step_width;
+            // size.y = line_height;
+        // }
         step_width = buffer.char_width;
-        line_height = buffer.font_size * 2;
+        line_height = buffer.font_size * buffer.ln_wh_k;
 
         // set cursor's position according to line number(cursor.line)
         pos.x = bufx * step_width;
@@ -148,18 +156,32 @@ struct Cursor {
         if (HasKeyPressing(KEY_RIGHT) && inside_r()) {
             if (chexist_r()) {
                 this->step();
+            } else if (flex >= Flex::ELASTIC && ln()+1 < buffer.vec().size()) {
+                log "Wrapped to next line\n";  // there is no text in cursor's right & next line exists
+                this->gotoln(ln()+1);
+                this->line_home();
             }
-        } else if (HasKeyPressing(KEY_LEFT) && inside_l()) {
+        } else if (HasKeyPressing(KEY_LEFT)) {
             if (chexist_l()) {
                 this->step(-1);
+            } else if (flex >= Flex::ELASTIC && ln()) {
+                log "Wrapped to next line\n";  // there is no text in cursor's left & previous line exists
+                this->gotoln(ln()-1);
+                this->line_end();
             }
-        } else if (HasKeyPressing(KEY_UP) && inside_u()) {
-            if (chexist_u()) {
-                this->gotoln(ln() - 1);
+        } else if (HasKeyPressing(KEY_UP)) {
+            if (inside_u()) {
+                this->gotoln(ln()-1);
+            } else if (flex >= Flex::ELASTIC) {  // there is no text above cursor
+                log "Unwrapped to next line\n";
+                this->line_home();
             }
         } else if (HasKeyPressing(KEY_DOWN) && inside_d()) {
-            if (chexist_d()) {
-                this->gotoln(ln() + 1);
+            if (inside_d()) {
+                this->gotoln(ln()+1);
+            } else if (flex >= Flex::ELASTIC) {  // there is no text below cursor
+                log "Unwrapped to next line\n";
+                this->line_end();
             }
         }
 
@@ -173,7 +195,6 @@ struct Cursor {
                     if (ln() > 0) {
                         this->gotoln(ln() - 1);
                         this->line_end();
-                        this->delete_c();
                     }
                 }
             }
@@ -198,9 +219,17 @@ struct Cursor {
             bufx = 0; ++bufy;
         }
 
+        /// CTRL-key bindings
         if (IsKeyDown(KEY_LEFT_CONTROL)) {
             if (IsKeyPressed(KEY_S)) {
-                buffer.fsave();
+                buffer.name = "file.edex";
+                if (buffer.fsave(std::filesystem::current_path())) {
+                    
+                } else {
+                    logx "Some file operation error occured, check out: "
+                    __FILE__ << ":" << __LINE__
+                    << logxe;
+                }
             }
         }
     }

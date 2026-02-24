@@ -9,7 +9,7 @@ int main()
     InitWindow(init_win_w, init_win_h, "");
     if (is_fps_capped) SetTargetFPS(target_fps);
 
-    std::cout << "\e[37m";  // Set terminal font color white
+    std::cout << "\033[37m";  // Set terminal font color white
     setup();
     while (!WindowShouldClose())
     {

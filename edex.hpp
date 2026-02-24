@@ -26,12 +26,24 @@ struct TextBuffer {
     std::vector<string> data{};
 
     Vec2 curs_pos = {0, 0};
-
     Font font;
     Color font_clr = Color3(255, 255, 255);
     f32 font_size = 32.0f;
     const f32 font_spacing = font_size / 10.0f;
     f32 char_width = 0;
+    f32 ln_wh_k = 1.15;  // line width/height proportion
+
+    // Companion struct for space renderer object
+    struct _RendWS {
+        bool enabled = true;
+        f32 radius;
+        u_char alpha = 120;
+        u_char r = 255;
+        u_char g = 255;
+        u_char b = 255;
+    };
+    _RendWS rendws;
+
 
     std::vector<string>& vec() {
         return this->data;
@@ -39,7 +51,16 @@ struct TextBuffer {
     std::string& str(uint i) {
         return this->vec()[i];
     }
+
     char& operator() (uint i, uint j) {
+        size_t vsize = data.size();
+        size_t hsize = data[j].size();
+        if (vsize <= j) {
+            data.resize(j+1);
+        }
+        if (hsize <= i) {
+            data[j].resize(i+1);
+        }
         return data[j][i];
     }
 
@@ -104,25 +125,29 @@ struct TextBuffer {
     }
 
     /// FILE OPERATIONS
-    /// @brief: save file to /%path/%name|%opt_name
-    int fsave(const string& dir, const string& opt_name="") {
-        const char* path;
-        if (opt_name[0]=='\0') { // handling default argument
-            path = (dir + "/" + this->name).c_str();
-        } else {
-            path = (dir + "/" + opt_name).c_str();
+    bool fsave(const string& dir, const string& opt_name = "") {
+        string filename = opt_name.empty() ? this->name : opt_name;
+        if (filename.empty()) {
+            log "\033[31mfsave: no filename specified or buffer has no name!"
+            "\033[0m\n"; return false;
         }
- 
-        logx "Saving file to " << path << logxe;
-        std::ofstream of(path);
+        string full_path = dir + "/" + filename;
+        std::ofstream of(full_path);
+        if (!of.is_open()) {
+            log "\033[31mfsave: failed to open file: " <<
+            full_path << "\033[0m\n";
+            return false;
+        }
         for (auto& line : this->data) {
             of << line << "\n";
         }
+        logx "\033[34mSaved file to " << full_path << "\033[0m" << logxe;
+        return true;
     }
 
 
     void start() {
-        vec().resize(100);
+        vec().resize(1);
         font = LoadFont(EDEX_DEFAULT_BUFFER_FONT);
         char_width = MeasureTextEx(font, "A", font_size, font_spacing).x;
     }
@@ -134,13 +159,13 @@ struct TextBuffer {
             // log "\rRendering character '" << line[j] << "'\n";
             Vec2 char_pos = {
                 col * char_width,
-                row * font_size*2
+                row * font_size*ln_wh_k
             };
-            if (c==' ')
+            if (c==' ' && rendws.enabled)
             {
                 DrawCircle(
                     char_pos.x+2*font_spacing, char_pos.y+font_size/2,
-                    3, {255,255,255, 120}
+                    rendws.radius, {rendws.r, rendws.g, rendws.b, rendws.alpha}
                 );
                 goto bypass;
             }

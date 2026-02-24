@@ -5,7 +5,9 @@
 #include <functional>
 #include <cassert>
 #include <fstream>
+#include <filesystem>
 #include <limits.h>
+#include <unistd.h>
 
 #define Color3(r, g, b)  (Color){r, g, b, 255}
 
