@@ -18,8 +18,8 @@ struct Cursor {
     f32 line_height = step_width * buffer.ln_wh_k;
     Vec2 size = {16, 33};
 
-    enum class Flex { RIGID=1, ELASTIC, FLUID };
-    Flex flex = Flex::FLUID;
+    enum class Flex { RIGID=1, DYNAMIC, ELASTIC };
+    Flex flex = Flex::ELASTIC;
     Flex flex_previous = Flex(0);
 
     /// @brief Get x,y,w,h components as rectangle
@@ -32,7 +32,7 @@ struct Cursor {
     bool inside_r() { return pos.x < win_w - 2*size.x; }
     bool inside_l() { return pos.x > 0; }
     bool inside_u() { return pos.y > 0; }
-    bool inside_d() { return pos.y < win_h - 2*size.y; }
+    bool inside_d() { return pos.y <= win_h - 2*size.y; }
 
     // Check if (ch)aracter exists (safe buffer bounds)
     bool chexist_r() {
@@ -95,13 +95,13 @@ struct Cursor {
         }
     }
 
-    /// steps until cursor is on end of the line, @returns line length
+    /// goes to end of the line, @returns passed char count
     uint line_end() {
         uint old_bufx = bufx;
         bufx = buffer.str(bufy).size();
         return bufx - old_bufx;
     }
-    /// steps until cursor is on start of the line, @returns step count
+    /// goes to start of the line, @returns step count
     uint line_home() {
         uint old_bufx = bufx;
         bufx = 0;
@@ -156,7 +156,7 @@ struct Cursor {
         if (HasKeyPressing(KEY_RIGHT) && inside_r()) {
             if (chexist_r()) {
                 this->step();
-            } else if (flex >= Flex::ELASTIC && ln()+1 < buffer.vec().size()) {
+            } else if (flex >= Flex::DYNAMIC && ln()+1 < buffer.vec().size()) {
                 log "Wrapped to next line\n";  // there is no text in cursor's right & next line exists
                 this->gotoln(ln()+1);
                 this->line_home();
@@ -164,23 +164,23 @@ struct Cursor {
         } else if (HasKeyPressing(KEY_LEFT)) {
             if (chexist_l()) {
                 this->step(-1);
-            } else if (flex >= Flex::ELASTIC && ln()) {
-                log "Wrapped to next line\n";  // there is no text in cursor's left & previous line exists
+            } else if (flex >= Flex::DYNAMIC && ln()) {
+                log "Wrapped to previous line\n";  // there is no text in cursor's left & previous line exists
                 this->gotoln(ln()-1);
                 this->line_end();
             }
         } else if (HasKeyPressing(KEY_UP)) {
             if (inside_u()) {
                 this->gotoln(ln()-1);
-            } else if (flex >= Flex::ELASTIC) {  // there is no text above cursor
-                log "Unwrapped to next line\n";
+            } else if (flex >= Flex::DYNAMIC) {  // there is no text above cursor
+                log "Unwrapped to EOL\n";
                 this->line_home();
             }
-        } else if (HasKeyPressing(KEY_DOWN) && inside_d()) {
-            if (inside_d()) {
+        } else if (HasKeyPressing(KEY_DOWN)) {
+            if (buffer.vec().size() > ln()+1) {
                 this->gotoln(ln()+1);
-            } else if (flex >= Flex::ELASTIC) {  // there is no text below cursor
-                log "Unwrapped to next line\n";
+            } else if (flex >= Flex::DYNAMIC) {  // there is no text below cursor
+                log "Unwrapped to BOL\n";
                 this->line_end();
             }
         }

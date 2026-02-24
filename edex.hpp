@@ -36,7 +36,7 @@ struct TextBuffer {
     // Companion struct for space renderer object
     struct _RendWS {
         bool enabled = true;
-        f32 radius;
+        f32 radius = 2.7;
         u_char alpha = 120;
         u_char r = 255;
         u_char g = 255;
