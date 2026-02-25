@@ -3,12 +3,15 @@
 #include <iostream>
 #include <vector>
 #include <functional>
-#include <cassert>
 #include <fstream>
 #include <filesystem>
+#include <charconv>
+#include <cassert>
 #include <limits.h>
 #include <unistd.h>
 
+#define CSEGMENTS 5000
+#define RSEGMENTS 250
 #define Color3(r, g, b)  (Color){r, g, b, 255}
 
 #if defined (__linux__) || defined (__APPLE__)

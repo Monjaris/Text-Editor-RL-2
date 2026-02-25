@@ -25,13 +25,16 @@ struct TextBuffer {
     std::string name;
     std::vector<string> data{};
 
+    Color bgcolor = Color3(1, 3, 8);
     Vec2 curs_pos = {0, 0};
+    uint curs_line = 0;
+
     Font font;
     Color font_clr = Color3(255, 255, 255);
-    f32 font_size = 32.0f;
+    f32 font_size = 32.0;
     const f32 font_spacing = font_size / 10.0f;
     f32 char_width = 0;
-    f32 ln_wh_k = 1.15;  // line width/height proportion
+    f32 ln_wh_k = 1.125;  // line width/height proportion
 
     // Companion struct for space renderer object
     struct _RendWS {
@@ -43,6 +46,30 @@ struct TextBuffer {
         u_char b = 255;
     };
     _RendWS rendws;
+
+    // Companion struct for line padding object
+    struct _LinePadding {
+        f32 padding = 56;
+        f32 fsize = 35;
+        f32 fsize_active = 35;
+        Color bgcolor = {11, 11, 11, 230};
+        Color bgcolor_active = {34, 34, 34, 250};
+        Color fcolor = {240, 239, 238, 225};
+        Color fcolor_active = {255, 254, 252, 255};
+    };
+    _LinePadding linepad;
+
+    // Companion struct for line highlighter object
+    struct _LnHighlight {
+        bool enabled = true;
+        f32 thickness = 1;
+        f32 thickness_active = 2;
+        Color border_color = {220, 220, 220, 80};
+        Color border_color_active = {240, 240, 240, 170};
+        Color body_color = {10, 10, 10, 15};
+        Color body_color_active = {10, 10, 10, 5};
+    };
+    _LnHighlight ln_highlight;
 
 
     std::vector<string>& vec() {
@@ -124,6 +151,50 @@ struct TextBuffer {
         });
     }
 
+    // pass nothing or true if it is the active line, else pass false
+    void renderLines() {
+        for (uint i=0;  i < data.size();  ++i) {
+            // pad object - width & height of the line padding
+            Vec2 pad = {0+linepad.padding, font_size*ln_wh_k};
+            bool active = i==this->curs_line;
+
+            // Draw : Line paddings
+            DrawRectangle(
+                0, i*pad.y,
+                pad.x, pad.y,
+                ((active))? (linepad.bgcolor_active) : (linepad.bgcolor)
+            );
+
+            // Draw : Line numbers
+            renderText(
+                font, itos(i+1),
+                {pad.x-(linepad.padding/2)-(linepad.fsize/2), pad.y*i},
+                ((active))? (linepad.fcolor_active) : (linepad.fcolor),
+                ((active))? (linepad.fsize_active) : (linepad.fsize),
+                1.0  // spacing
+            );
+
+            // Draw : Line highlights
+            if (ln_highlight.enabled)  {
+                // Draw : .body
+                DrawRectangle(
+                    linepad.padding, pad.y*i,
+                    win_w-linepad.padding, font_size*ln_wh_k,
+                    ((active))? (ln_highlight.body_color_active) : (ln_highlight.body_color)
+                );
+                // Draw : .borders
+                DrawRectangleLinesEx(
+                    Rect {
+                        linepad.padding, pad.y*i,
+                        win_w-linepad.padding, font_size*ln_wh_k
+                    },
+                    ((active))? (ln_highlight.thickness_active) : (ln_highlight.thickness),
+                    ((active))? (ln_highlight.border_color_active) : (ln_highlight.border_color)
+                );
+            }
+        }
+    }
+
     /// FILE OPERATIONS
     bool fsave(const string& dir, const string& opt_name = "") {
         string filename = opt_name.empty() ? this->name : opt_name;
@@ -151,14 +222,24 @@ struct TextBuffer {
         font = LoadFont(EDEX_DEFAULT_BUFFER_FONT);
         char_width = MeasureTextEx(font, "A", font_size, font_spacing).x;
     }
-    void loop(Vec2 _cursor_position) {
+    void loop(Vec2 _cursor_position, uint _cursor_line_number) {
         curs_pos = _cursor_position;
+        curs_line = _cursor_line_number;
     }
-    void draw() {
+
+    void draw()
+    {
+        // Draw background
+        DrawRectangle(
+            0, 0,
+            win_w, win_w,
+            bgcolor
+        );
+
+        // Render characters
         this->apply_sij([this](char c, uint row, uint col){
-            // log "\rRendering character '" << line[j] << "'\n";
             Vec2 char_pos = {
-                col * char_width,
+                linepad.padding + (col * char_width),
                 row * font_size*ln_wh_k
             };
             if (c==' ' && rendws.enabled)
@@ -169,15 +250,15 @@ struct TextBuffer {
                 );
                 goto bypass;
             }
-
             renderText(
                 font, c, char_pos, font_clr,
                 font_size, font_spacing
             );
-
-        bypass:
+            bypass:
             //
         });
+
+        renderLines();
     }
 };
 

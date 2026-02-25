@@ -14,6 +14,19 @@ inline const char* ctos(char ch) {
     return buf;
 }
 
+template <typename T>
+requires std::is_integral_v<T>
+inline const char* itos(T x) {
+    constexpr unsigned int64_digits = 21;
+    static thread_local char buf[int64_digits];
+    auto res = std::to_chars(buf, buf+int64_digits, x);
+    if (res.ec == std::errc()) {
+        *res.ptr = '\0';
+        return buf;
+    }
+    return __func__;
+}
+
 inline bool HasKeyPressing(int key) {
     return IsKeyPressed(key) || IsKeyPressedRepeat(key);
 }
@@ -35,6 +48,7 @@ inline bool HasKeyPressing(int& out_key) {
 }
 
 
+// Render text : C-STRING
 inline void renderText(
     const Font& font, const char* txt, Vec2 pos, Color fclr, f32 fsize=32, f32 spacing=1
 ){
@@ -42,12 +56,22 @@ inline void renderText(
         font, txt, pos, fsize, spacing, fclr
     );
 }
-
+// Render text : UNSIGNED-CHAR
 inline void renderText(
-    const Font& font, char ch, Vec2 pos, Color fclr, f32 fsize=32, f32 spacing=1
+    const Font& font, u_char ch, Vec2 pos, Color fclr, f32 fsize=32, f32 spacing=1
 ){
     const char txt[] = {ch, '\0'};
     DrawTextEx(
         font, txt, pos, fsize, spacing, fclr
     );
 }
+// Render text : STD::STRING
+inline void renderText(
+    const Font& font, const string& txt, Vec2 pos, Color fclr, f32 fsize=32, f32 spacing=1
+){
+    const char* _txt = txt.c_str();
+    DrawTextEx(
+        font, _txt, pos, fsize, spacing, fclr
+    );
+}
+

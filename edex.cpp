@@ -1,12 +1,10 @@
 #include "edex.hpp"
 
-#define SEGMENTS 10000
-
 TextBuffer buffer;
 
 struct Cursor {
     Color color = {240, 240, 240, 150};
-    f32 roundness = 0.2;
+    f32 roundness = 0.0;
 
     uint bufx = 0;
     uint bufy = 0;
@@ -14,9 +12,9 @@ struct Cursor {
     Vec2 pos = {0, 0};
 
     bool keep_size_as_font_size = 0;
-    f32 step_width = 20;
+    f32 step_width = 22;
     f32 line_height = step_width * buffer.ln_wh_k;
-    Vec2 size = {16, 33};
+    Vec2 size = {16, 34};
 
     enum class Flex { RIGID=1, DYNAMIC, ELASTIC };
     Flex flex = Flex::ELASTIC;
@@ -132,16 +130,16 @@ struct Cursor {
     }
 #pragma region LOOP
     void loop() {
-        // if (keep_size_as_font_size) {
-            // size.x = step_width;
-            // size.y = line_height;
-        // }
+        if (keep_size_as_font_size) {
+            size.x = step_width;
+            size.y = line_height;
+        }
         step_width = buffer.char_width;
         line_height = buffer.font_size * buffer.ln_wh_k;
 
         // set cursor's position according to line number(cursor.line)
-        pos.x = bufx * step_width;
-        pos.y = bufy * line_height;
+        pos.x = buffer.linepad.padding + (bufx * step_width);
+        pos.y = (bufy * line_height);
 
         /// this variable is used via HasKeyPressing<true>(wkey) only
         int wkey; // well because that function writes into it, then operates
@@ -235,7 +233,7 @@ struct Cursor {
     }
     void draw() {
         DrawRectangleRounded(
-            rect(), roundness, SEGMENTS, color
+            rect(), roundness, RSEGMENTS, color
         );
     }
 };
@@ -254,7 +252,7 @@ void setup()
 
 void update()
 {
-    buffer.loop(cursor.pos);
+    buffer.loop(cursor.pos, cursor.ln());
     cursor.loop();
 }
 
