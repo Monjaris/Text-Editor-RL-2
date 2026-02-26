@@ -75,10 +75,9 @@ struct Cursor {
             << (total>0? "right":"left") << "\n";
     }
 
-    /// @todo implement ts
     void gotoln(uint line_no) {
         if (line_no < 0) {
-            log "Can't go after line 0!\n"; return;
+            log "Can't go line number below ZERO!\n"; return;
         }
         if (line_no == buffer.vec().size()) {
             line_no = buffer.vec().size() - 1;
@@ -111,14 +110,30 @@ struct Cursor {
         if (next_c) {
             buffer.remove(bufx, bufy);
         }
-        else {
-            if (chexist_l() && inside_l()) {
+        else
+        {
+            if (bufx > 0) {
                 this->step(-1);
-                if (!buffer.remove(bufx, bufy)) log "Couldn't remove!\n";
-            } else if (!inside_l()) {
-                if (ln()) { // goto line above if it's not first line(ln()!=0)
+                TRY(
+                    !buffer.remove(bufx, bufy),
+                    "Couldn't remove!"
+                );
+            } else if (flex>=Flex::DYNAMIC && ln()) {
+                auto& lines = buffer.vec();  /// Literally data(vector) of the `TextBuffer buffer`
+                if (lines[bufy].empty()) {
+                    log "Delete: line is empty, deleting line entry!\n";
+                    lines.erase(lines.begin()+bufy);
                     gotoln(ln()-1);
                     this->line_end();
+                }
+                else {
+                    log "Delete: it's start of the line, delete + concat line\n";
+                    const string cat = lines[bufy];  // con+cat did you get?
+                    lines[bufy-1].append(cat);
+                    lines.erase(lines.begin()+bufy);
+                    gotoln(ln()-1);
+                    this->line_end();
+                    this->step(-cat.size());
                 }
             }
         }
@@ -185,27 +200,10 @@ struct Cursor {
 
         /// @brief deleting text
         if (HasKeyPressing(KEY_BACKSPACE)) {
-            if (inside_l()) {
-                this->delete_c();
-            }
-            else {
-                if (inside_u()) {
-                    if (ln() > 0) {
-                        this->gotoln(ln() - 1);
-                        this->line_end();
-                    }
-                }
-            }
+            this->delete_c();
         }  // Delete characters in reversed direction
         else if (HasKeyPressing(KEY_DELETE)) {
-            if (inside_r()) {
-                this->delete_c(true);
-            }
-            else {
-                if (inside_d()) {
-
-                }
-            }
+            this->delete_c();
         }
 
         /// @brief line breaking with enter key

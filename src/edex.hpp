@@ -1,9 +1,6 @@
 #pragma once
 #include "utils.h"
 
-#define log std::cerr<<
-#define logx std::cerr << "\033[1;34m" <<
-#define logxe "\033[0m\n"
 
 constexpr inline f32 init_win_w = 1280;
 constexpr inline f32 init_win_h = 720;
@@ -39,11 +36,11 @@ struct TextBuffer {
     // Companion struct for space renderer object
     struct _RendWS {
         bool enabled = true;
-        f32 radius = 2.7;
-        u_char alpha = 120;
-        u_char r = 255;
-        u_char g = 255;
-        u_char b = 255;
+        f32 radius = 2.4;
+        u_char alpha = 180;
+        u_char r = 200;
+        u_char g = 200;
+        u_char b = 200;
     };
     _RendWS rendws;
 
@@ -126,14 +123,28 @@ struct TextBuffer {
     }
 
     /// @brief Delete character at position (col, row)
-    /// @return true if deleted, false if nothing to delete
     bool remove(uint col, uint row) {
-        if (row >= vec().size()) return false;
-        if (col >= str(row).size()) return false;
-
+        if (row >= vec().size()) {
+            log "Can't remove character, \033[1mrow\033[0;37m"
+            "number exceeds the bound!\n"; return false;
+        }
+        if (col >= str(row).size()) {
+            log "Can't remove character, \033[1mcol\033[0;37m"
+            "number exceeds the bound!\n"; return false;
+        }
         str(row).erase(str(row).begin() + col);
         log "Deleted char at (" << col << ", " << row << ")\n";
         return true;
+    }
+
+    /// @brief Delete line at position (row)
+    bool remove_line(uint row) {
+        if (row > vec().size()) {
+            log "Can't remove line, \033[1mrow\033[37m"
+            "number exceeds the bound!\n";
+            return false;
+        }
+        str(row).get_allocator().deallocate(str(row).data(), str(row).size());
     }
     
     /// @brief Insert character at position (col, row)
