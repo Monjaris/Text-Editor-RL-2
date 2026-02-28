@@ -34,19 +34,19 @@ struct Cursor {
 
     // Check if (ch)aracter exists (safe buffer bounds)
     bool chexist_r() {
-        return bufy < buffer.vec().size()
+        return bufy < buffer.line_count
         && bufx < buffer.str(bufy).size();
     }
     bool chexist_l() {
-        return bufy < buffer.vec().size()
+        return bufy < buffer.line_count
         && bufx > 0 && bufx - 1 < buffer.str(bufy).size();
     }
     bool chexist_u() {
-        return bufy > 0 &&  bufy - 1 < buffer.vec().size()
+        return bufy > 0 &&  bufy - 1 < buffer.line_count
         && bufx < buffer.str(bufy - 1).size();
     }
     bool chexist_d() {
-        return bufy + 1 < buffer.vec().size()
+        return bufy + 1 < buffer.line_count
         && bufx < buffer.str(bufy + 1).size();
     }
 
@@ -79,8 +79,8 @@ struct Cursor {
         if (line_no < 0) {
             log "Can't go line number below ZERO!\n"; return;
         }
-        if (line_no == buffer.vec().size()) {
-            line_no = buffer.vec().size() - 1;
+        if (line_no == buffer.line_count) {
+            line_no = buffer.line_count - 1;
         }
 
         log "Went to line \033[4;1m" << line_no << "\033[0;37m(+1)\n";
@@ -107,11 +107,23 @@ struct Cursor {
 
     // delete previous char or next char if you pass true
     void delete_c(bool next_c = false) {
+        auto& lines = buffer.vec();  /// Literally data(vector) of the `TextBuffer buffer`
         if (next_c) {
-            buffer.remove(bufx, bufy);
+            if (bufx < (buffer.str(bufy).size())) {
+                buffer.remove(bufx, bufy);
+            }
+            else if (flex>=Flex::DYNAMIC && (ln()<buffer.line_count-1)) {
+                log "Delete(next_c): it's start of the line, delete + concat line\n";
+                const string del_line = lines[bufy+1];
+                // gotoln(ln());
+                this->line_home();
+                this->step(lines[bufy].size());
+                lines[bufy].append(del_line);
+                lines.erase(lines.begin()+bufy+1);
+            }
         }
-        else
-        {
+        // delete character back(backspace key action)
+        else {
             if (bufx > 0) {
                 this->step(-1);
                 TRY(
@@ -119,26 +131,30 @@ struct Cursor {
                     "Couldn't remove!"
                 );
             } else if (flex>=Flex::DYNAMIC && ln()) {
-                auto& lines = buffer.vec();  /// Literally data(vector) of the `TextBuffer buffer`
                 if (lines[bufy].empty()) {
                     log "Delete: line is empty, deleting line entry!\n";
                     lines.erase(lines.begin()+bufy);
                     gotoln(ln()-1);
                     this->line_end();
                 }
-                else {
+                else if (flex >= Flex::DYNAMIC) {
                     log "Delete: it's start of the line, delete + concat line\n";
-                    const string cat = lines[bufy];  // con+cat did you get?
-                    lines[bufy-1].append(cat);
+                    const string del_line = lines[bufy];
+                    lines[bufy-1].append(del_line);
                     lines.erase(lines.begin()+bufy);
                     gotoln(ln()-1);
                     this->line_end();
-                    this->step(-cat.size());
+                    this->step(-del_line.size());
                 }
             }
         }
     }
 
+    // delete previous word or next word if you pass true
+    void delete_word(bool next_w=false) {
+        auto& lines = buffer.vec();  /// Literally data(vector) of the `TextBuffer buffer`
+        // IMPL TS
+    }
 
     void start() {
 
@@ -161,7 +177,7 @@ struct Cursor {
 
         /// @brief Writing text
         if (HasKeyPressing<true>(wkey)) {
-            buffer.insert(wkey, bufx, bufy);
+            buffer.insert(wkey, this->bufx, this->bufy);
             this->step(+1);
         }
 
@@ -169,7 +185,7 @@ struct Cursor {
         if (HasKeyPressing(KEY_RIGHT) && inside_r()) {
             if (chexist_r()) {
                 this->step();
-            } else if (flex >= Flex::DYNAMIC && ln()+1 < buffer.vec().size()) {
+            } else if (flex >= Flex::DYNAMIC && ln()+1 < buffer.line_count) {
                 log "Wrapped to next line\n";  // there is no text in cursor's right & next line exists
                 this->gotoln(ln()+1);
                 this->line_home();
@@ -190,7 +206,7 @@ struct Cursor {
                 this->line_home();
             }
         } else if (HasKeyPressing(KEY_DOWN)) {
-            if (buffer.vec().size() > ln()+1) {
+            if (buffer.line_count > ln()+1) {
                 this->gotoln(ln()+1);
             } else if (flex >= Flex::DYNAMIC) {  // there is no text below cursor
                 log "Unwrapped to BOL\n";
@@ -203,7 +219,7 @@ struct Cursor {
             this->delete_c();
         }  // Delete characters in reversed direction
         else if (HasKeyPressing(KEY_DELETE)) {
-            this->delete_c();
+            this->delete_c(true);
         }
 
         /// @brief line breaking with enter key
@@ -215,17 +231,23 @@ struct Cursor {
             bufx = 0; ++bufy;
         }
 
+        if (HasKeyPressing(KEY_TAB)) {
+            this->step(buffer.insert_tab(bufx, bufy));
+        }
+
         /// CTRL-key bindings
         if (IsKeyDown(KEY_LEFT_CONTROL)) {
             if (IsKeyPressed(KEY_S)) {
-                buffer.name = "file.edex";
-                if (buffer.fsave(std::filesystem::current_path())) {
-                    
+                if (buffer.fsave(stdfs::current_path())) {
+                    // saved successfully(logging handled by fsave())
                 } else {
                     logx "Some file operation error occured, check out: "
                     __FILE__ << ":" << __LINE__
                     << logxe;
                 }
+            }
+            else if (IsKeyPressed(KEY_O)) {
+                // `TextBuffer::fload()` WILL BE IMPLEMENTED IN THE NEXT UPDATE!
             }
         }
     }

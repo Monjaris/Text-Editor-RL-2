@@ -19,19 +19,27 @@ void render();
 
 
 struct TextBuffer {
-    std::string name;
+    std::string name = EDEX_DEFAULT_BUFFER_NAME;
     std::vector<string> data{};
+    bool readonly = false;
 
-    Color bgcolor = Color3(1, 3, 8);
+    Color bgcolor = Color3(20, 23, 28);
     Vec2 curs_pos = {0, 0};
     uint curs_line = 0;
+    uint line_count = 0;
 
-    Font font;
-    Color font_clr = Color3(255, 255, 255);
+    Font font = {};
+    const char* font_family = EDEX_DEFAULT_BUFFER_FONT;
     f32 font_size = 32.0;
+    f32 font_glyph_k = 3.0;  // basically: font = (glyhp_size*font_glyph_k) when font size (re)loads
+    Color font_clr = Color3(255, 255, 255);
     const f32 font_spacing = font_size / 10.0f;
     f32 char_width = 0;
     f32 ln_wh_k = 1.125;  // line width/height proportion
+
+    enum class TabMode { TAB=1, WS, SOFTWS };
+    TabMode tabmode = TabMode::WS;
+    uint tab_size = 4;
 
     // Companion struct for space renderer object
     struct _RendWS {
@@ -121,14 +129,22 @@ struct TextBuffer {
             }
         }
     }
+    /// Print the whole data do @arg _stream
+    void print(FILE* _stream=stdout) {
+        this->apply_c([_stream](char c) {
+            fprintf(_stream, "%c", c);
+        });
+    }
 
     /// @brief Delete character at position (col, row)
     bool remove(uint col, uint row) {
-        if (row >= vec().size()) {
+        if (this->readonly) {
+            log "Can't remove character, buffer is read-only!\n";
+            return false;
+        } else if (row >= vec().size()) {
             log "Can't remove character, \033[1mrow\033[0;37m"
             "number exceeds the bound!\n"; return false;
-        }
-        if (col >= str(row).size()) {
+        } else if (col >= str(row).size()) {
             log "Can't remove character, \033[1mcol\033[0;37m"
             "number exceeds the bound!\n"; return false;
         }
@@ -156,11 +172,55 @@ struct TextBuffer {
         log "Inserted '" << c << "' at (" << col << ", " << row << ")\n";
     }
 
-    void print(FILE* _stream=stdout) {
-        this->apply_c([_stream](char c) {
-            fprintf(_stream, "%c", c);
-        });
+    /// @brief based on the settings, such, insert tab @arg c times
+    /// @return total steps done, @usage: cur.step(buf.insert_tab(x,y))
+    uint insert_tab(uint col, uint row, uint c=1) {
+        if (c <= 0) {
+            log "You can't insert a tab less than 1!\n";
+            return 0;
+        }
+        // get total steps that will be done
+        uint space_c = this->tab_size;
+        const uint steps = c*space_c;
+        while (c--)
+        {
+            while (space_c--)
+            {
+                if (tabmode==TabMode::TAB) {
+                    this->insert('\t', col, row);
+                } else if (tabmode==TabMode::WS || tabmode==TabMode::SOFTWS) {
+                    this->insert(' ', col, row);
+                }
+            }
+        }
+        return steps;
     }
+
+
+    /// @brief set new font size
+    /// @return old font size
+    f32 setFontSize(f32 new_size) {
+        if (new_size < EDEX_FONT_SIZE_MIN) {
+            log "Can't set font size below this: " << EDEX_FONT_SIZE_MIN
+            << "\n"; return font_size;
+        } else if (FEQ( new_size , font_size )) {
+            log "Font size unchanged!\n"; return font_size;
+        }
+
+        f32 size_old = font_size;
+        Font font_new = LoadFontEx(
+            font_family, CAST(int, new_size * font_glyph_k+0.5f),
+            nullptr, 0
+        );
+        Font font_old = this->font;
+        this->font = font_new;
+        
+        this->font_size = new_size;
+        UnloadFont(font_old);
+        char_width = MeasureTextEx(font, "A", font_size, font_spacing).x;
+        return size_old;
+    }
+
 
     // pass nothing or true if it is the active line, else pass false
     void renderLines() {
@@ -230,12 +290,17 @@ struct TextBuffer {
 
     void start() {
         vec().resize(1);
-        font = LoadFont(EDEX_DEFAULT_BUFFER_FONT);
+        this->font = LoadFontEx(
+            font_family, CAST(int, font_size * font_glyph_k+0.5f),
+            nullptr, 0
+        );
         char_width = MeasureTextEx(font, "A", font_size, font_spacing).x;
     }
+
     void loop(Vec2 _cursor_position, uint _cursor_line_number) {
         curs_pos = _cursor_position;
         curs_line = _cursor_line_number;
+        line_count = this->vec().size();
     }
 
     void draw()
@@ -243,7 +308,7 @@ struct TextBuffer {
         // Draw background
         DrawRectangle(
             0, 0,
-            win_w, win_w,
+            win_w, win_h,
             bgcolor
         );
 
