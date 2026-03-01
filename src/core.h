@@ -23,8 +23,8 @@
 #define Color3(r, g, b)  (Color){r, g, b, 255}
 #define log std::cerr<<
 #define logx std::cerr << "\033[1;34m" <<
-#define logxe "\033[0m\n"
-#define TRY(stmt, errmsg)  do{if(!stmt){log errmsg;}}while(0);
+#define logxe "\033[0;37m\n"
+#define TRY(stmt, run)  do{if(!stmt){run}}while(0)
 #define CAST(type, value)  (static_cast<type>(value))
 #define FEQ(flt1, flt2)  (std::fabsf(flt1 - flt2) < 0.01f)  // f1==f2 is unprecise
 

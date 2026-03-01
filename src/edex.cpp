@@ -175,11 +175,14 @@ struct Cursor {
     }
 
 
-    void reload() {
-
+    void reload(bool first=false) {
+        logx (first? "Loading" : "Reloading") << " cursor.." logxe;
+        this->bufy = 0;
+        this->bufx = 0;
     }
+
     void start() {
-        reload();
+        reload(true);
     }
 
 #pragma region LOOP
@@ -255,6 +258,7 @@ struct Cursor {
 
         /// @brief line breaking with enter key
         if (HasKeyPressing(KEY_ENTER)) {
+            log "Line break: (" << bufx << ", " << bufy << ")\n";
             string& line = buffer.str(ln());
             string leftstr = line.substr(bufx);
             buffer.str(ln()).erase(bufx);
@@ -270,15 +274,16 @@ struct Cursor {
         if (IsKeyPressed(KEY_S)) {
             if (isCtrlDown(true, true)) {  // CTRL+S
                 TRY(buffer.save(stdfs::current_path().string()),
-                    "Saving buffer couldn't done!\n";
+                    log "Saving buffer couldn't done!\n";
                 );
             }
         }
         else if (IsKeyPressed(KEY_O)) {
             if (isCtrlDown(true, true)) {   // CTRL+O
                 TRY(buffer.load("file.edex.cc"),
-                    "Loading file  couldn't done!\n";
-                )
+                    log "Loading file  couldn't done!\n";
+                );
+                reload();
             }
         }
     }

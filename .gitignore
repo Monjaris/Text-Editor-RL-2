@@ -1,4 +1,4 @@
-*.edex*
 .vscode/
+*.edex*
+
 bin/
-assets/fonts/

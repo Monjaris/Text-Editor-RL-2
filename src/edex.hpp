@@ -306,7 +306,6 @@ struct TextBuffer {
             file_path << "\033[0m\n";
             return false;
         }
-
         // Read file in disk, write to buffer
         this->data.clear();  // wipe the buffer first
         for (string line; std::getline(file, line);) {
@@ -316,7 +315,8 @@ struct TextBuffer {
     }
 
 
-    void reload() {
+    void reload(bool first=false) {
+        logx (first? "Loading" : "Reloading") << " text buffer.." logxe;
         char_width = MeasureTextEx(font, "A", font_size, font_spacing).x;
         this->cwd = stdfs::current_path().string();
     }
@@ -327,7 +327,7 @@ struct TextBuffer {
             font_family, CAST(int, font_size * font_glyph_k+0.5f),
             nullptr, 0
         );
-        this->reload();
+        this->reload(true);
     }
 
     void loop(Vec2 _cursor_position, uint _cursor_line_number) {
