@@ -2,6 +2,9 @@
 #include "core.h"
 #include "edex.hpp"
 
+bool isCtrlDown(bool not_alt=false, bool not_shift=false);
+bool isAltDown(bool not_ctrl=false, bool not_shift=false);
+bool isShiftDown(bool not_ctrl=false, bool not_alt=false);
 
 inline const char* ctos(char ch) {
     static thread_local char buf[2] = {0};
@@ -53,9 +56,58 @@ inline bool is_symbol(char c, bool include_ws=true) {
 }
 
 
+inline bool isCtrlDown(bool not_alt, bool not_shift) {
+    if (not_alt) {
+        if (isAltDown()) {
+            return false;
+        }
+    }
+    if (not_shift) {
+        if (isShiftDown()) {
+            return false;
+        }
+    }
+    return IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
+}
+
+inline bool isAltDown(bool not_ctrl, bool not_shift) {
+    if (not_ctrl) {
+        if (isCtrlDown()) {
+            return false;
+        }
+    }
+    if (not_shift) {
+        if (isShiftDown()) {
+            return false;
+        }
+    }
+    return IsKeyDown(KEY_LEFT_ALT) || IsKeyDown(KEY_RIGHT_ALT);
+}
+
+inline bool isShiftDown(bool not_ctrl, bool not_alt) {
+    if (not_ctrl) {
+        if (isCtrlDown()) {
+            return false;
+        }
+    }
+    if (not_alt) {
+        if (isAltDown()) {
+            return false;
+        }
+    }
+    return IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+}
+
+inline bool isModKeyDown() {
+    return isCtrlDown() ||
+    isAltDown() || isShiftDown();
+}
+
+
 inline bool HasKeyPressing(int key) {
     return IsKeyPressed(key) || IsKeyPressedRepeat(key);
 }
+
 template <bool char_mode>
 inline bool HasKeyPressing(int& out_key) {
     static_assert(char_mode,
@@ -101,7 +153,7 @@ inline void renderText(
 
 
 enum class CharKind { WS=1, TAB, SYM, ABC, INT, UNKNOWN };
-inline CharKind getCharKind(char c) {
+inline CharKind getCharKind(char c, bool int_is_abc=false) {
     using enum CharKind;
     if (!is_printable(c)) {
         log "Can't get char kinf of '"<<c<<"', its not printable\n";
@@ -117,6 +169,9 @@ inline CharKind getCharKind(char c) {
     } else if (std::isalpha(c)) {
         return ABC;
     } else if (std::isdigit(c)) {
+        if (int_is_abc) {
+            return ABC;
+        }
         return INT;
     } else {
         log "Couldn't get CharKind of " << c << "\n";

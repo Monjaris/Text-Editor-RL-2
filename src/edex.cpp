@@ -124,11 +124,9 @@ struct Cursor {
         // delete character back(backspace key action)
         else {
             if (bufx > 0) {
-                this->step(-1);
-                TRY(
-                    !buffer.remove(bufx, bufy),
-                    "Couldn't remove!\n"
-                );
+                if (buffer.remove(bufx - 1, bufy)) {
+                    this->step(-1);
+                }
             } else if (flex>=Flex::DYNAMIC && ln()) {
                 if (bufdata[bufy].empty()) {
                     log "Delete: line is empty, deleting line entry!\n";
@@ -161,14 +159,16 @@ struct Cursor {
         }
         if (!next_w) {
             log "Deleting word back\n";
-            CharKind ck = getCharKind(buffer(bufx-1, bufy, false));
-            while ((bufx>0) && (getCharKind(buffer(bufx-1,bufy,false))==ck)) {
+            CharKind ck = getCharKind(buffer(bufx-1, bufy, false),false);
+            while ((bufx>0) && (getCharKind(buffer(bufx-1,bufy,false),false)==ck)) {
+                log ":: " << buffer(bufx-1, bufy, false)
+                << "  :  " << bufx << "\n";
                 delete_c();
             }
         } else {  // next_w == true
             log "Deleting word front\n";
-            CharKind ck = getCharKind(buffer(bufx+1, bufy, false));
-            while ((bufx>0) && (getCharKind(buffer(bufx+1,bufy,false))==ck)) {
+            CharKind ck = getCharKind(buffer(bufx, bufy, false));
+            while ((bufx>0) && (getCharKind(buffer(bufx,bufy,false))==ck)) {
                 delete_c(true);
             }
         }
@@ -239,10 +239,18 @@ struct Cursor {
 
         /// @brief deleting text
         if (HasKeyPressing(KEY_BACKSPACE)) {
-            this->delete_c();
+            if (isCtrlDown(true, true)) {  // CTRL+<-
+                this->delete_word();
+            } else if (not isModKeyDown()) {
+                this->delete_c();
+            }
         }  // Delete characters in reversed direction
         else if (HasKeyPressing(KEY_DELETE)) {
-            this->delete_c(true);
+            if (isCtrlDown(true ,true)) {  // CTRL+DEL
+                this->delete_word(true);
+            } else if (not isModKeyDown()) {
+                this->delete_c(true);
+            }
         }
 
         /// @brief line breaking with enter key
@@ -258,22 +266,19 @@ struct Cursor {
             this->step(buffer.insert_tab(bufx, bufy));
         }
 
-        /// CTRL-key bindings
-        if (IsKeyDown(KEY_LEFT_CONTROL)) {
-            if (HasKeyPressing(KEY_BACKSPACE)) {
-                this->delete_word();
+
+        if (IsKeyPressed(KEY_S)) {
+            if (isCtrlDown(true, true)) {  // CTRL+S
+                TRY(buffer.save(stdfs::current_path().string()),
+                    "Saving buffer couldn't done!\n";
+                );
             }
-            else if (IsKeyPressed(KEY_S)) {
-                if (buffer.fsave(stdfs::current_path().string())) {
-                    // saved successfully(logging handled by fsave())
-                } else {
-                    logx "Some file operation error occured, check out: "
-                    __FILE__ << ":" << __LINE__
-                    << logxe;
-                }
-            }
-            else if (IsKeyPressed(KEY_O)) {
-                // `TextBuffer::fload()` WILL BE IMPLEMENTED IN THE NEXT UPDATE!
+        }
+        else if (IsKeyPressed(KEY_O)) {
+            if (isCtrlDown(true, true)) {   // CTRL+O
+                TRY(buffer.load("file.edex.cc"),
+                    "Loading file  couldn't done!\n";
+                )
             }
         }
     }

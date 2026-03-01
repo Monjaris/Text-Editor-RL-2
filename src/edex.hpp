@@ -1,7 +1,6 @@
 #pragma once
 #include "utils.h"
 
-
 constexpr inline f32 init_win_w = 1280;
 constexpr inline f32 init_win_h = 720;
 inline f32 win_w = init_win_w;
@@ -20,6 +19,7 @@ void render();
 
 struct TextBuffer {
     std::string name = EDEX_DEFAULT_BUFFER_NAME;
+    std::string cwd = "./";
     std::vector<string> data{};
     bool readonly = false;
 
@@ -272,29 +272,53 @@ struct TextBuffer {
     }
 
     /// FILE OPERATIONS
-    bool fsave(const string& dir, const string& opt_name = "") {
+    bool save(const string& opt_dir="", const string& opt_name = "") {
+        string dirname = opt_dir.empty() ? this->cwd : opt_dir;
         string filename = opt_name.empty() ? this->name : opt_name;
+        // determine if argument is defaulted
         if (filename.empty()) {
             log "\033[31mfsave: no filename specified or buffer has no name!"
             "\033[0m\n"; return false;
         }
-        string full_path = dir + "/" + filename;
-        std::ofstream of(full_path);
-        if (!of.is_open()) {
-            log "\033[31mfsave: failed to open file: " <<
+
+        string full_path = dirname + "/" + filename;
+        std::ofstream file(full_path);
+        // Check if file opened
+        if (!file.is_open()) {
+            log "\033[31m.save: failed to open file: " <<
             full_path << "\033[0m\n";
             return false;
         }
-        for (auto& line : this->data) {
-            of << line << "\n";
+
+        // Write buffer to file in disk
+        for (auto& line :  this->data) {
+            file << line << "\n";
         }
         logx "\033[34mSaved file to " << full_path << "\033[0m" << logxe;
+        return true;
+    }
+
+    bool load(const string& file_path) {
+        std::ifstream file(file_path);
+        // Check if file opened
+        if (!file.is_open()) {
+            log "\033[31m.load: failed to open file: " <<
+            file_path << "\033[0m\n";
+            return false;
+        }
+
+        // Read file in disk, write to buffer
+        this->data.clear();  // wipe the buffer first
+        for (string line; std::getline(file, line);) {
+            this->data.push_back(line);
+        }
         return true;
     }
 
 
     void reload() {
         char_width = MeasureTextEx(font, "A", font_size, font_spacing).x;
+        this->cwd = stdfs::current_path().string();
     }
 
     void start() {
