@@ -6,10 +6,17 @@
 #include <fstream>
 #include <filesystem>
 #include <charconv>
+#include <limits>
 #include <cmath>
 #include <cassert>
-#include <limits.h>
-#include <unistd.h>
+
+#ifdef __linux__
+    #include <limits.h>
+    #include <unistd.h>
+#else
+    #include <windows.h>
+    using uint = uint32_t;
+#endif
 
 #define CSEGMENTS 5000
 #define RSEGMENTS 250
@@ -19,7 +26,7 @@
 #define logxe "\033[0m\n"
 #define TRY(stmt, errmsg)  do{if(!stmt){log errmsg;}}while(0);
 #define CAST(type, value)  (static_cast<type>(value))
-#define FEQ(float_1, float_2)  (std::fabsf(new_size - font_size) < 0.01f)  // f==f is unprecise
+#define FEQ(flt1, flt2)  (std::fabsf(flt1 - flt2) < 0.01f)  // f1==f2 is unprecise
 
 #define EDEX_DEFAULT_BUFFER_FONT "assets/fonts/JetBrainsMono/JetBrainsMono-Regular.ttf"
 #define EDEX_DEFAULT_UI_FONT "assets/fonts/InterVariable/InterVariable.ttf"

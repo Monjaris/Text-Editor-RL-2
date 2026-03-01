@@ -2,6 +2,7 @@
 
 TextBuffer buffer;
 
+
 struct Cursor {
     Color color = {240, 240, 240, 150};
     f32 roundness = 0.0;
@@ -61,14 +62,10 @@ struct Cursor {
     /// @brief pass integer x to step cursor x times, -x to step cursor -x times
     void step(int count = 1) {
         auto total = count;
-        if(count == 0) {
-            log "Can't pass 0 as step value!\n";
-            return;
-        }
 
         int new_bufx = static_cast<int>(bufx) + count;
         if (new_bufx < 0) new_bufx = 0;
-        if (new_bufx > buffer.str(bufy).size()) new_bufx = buffer.str(bufy).size();
+        if ((uint)new_bufx > buffer.str(bufy).size()) new_bufx = buffer.str(bufy).size();
         bufx = new_bufx;
 
         log "Cursor stepped " << total << " to "
@@ -76,11 +73,13 @@ struct Cursor {
     }
 
     void gotoln(uint line_no) {
-        if (line_no < 0) {
-            log "Can't go line number below ZERO!\n"; return;
+        const uint& maxlines = buffer.line_count;
+        if (line_no >= buffer.line_count) {
+            log "Can't go line number above" <<
+            maxlines << "!\n"; return;
         }
-        if (line_no == buffer.line_count) {
-            line_no = buffer.line_count - 1;
+        if (line_no == maxlines) {
+            line_no = maxlines;
         }
 
         log "Went to line \033[4;1m" << line_no << "\033[0;37m(+1)\n";
@@ -107,19 +106,19 @@ struct Cursor {
 
     // delete previous char or next char if you pass true
     void delete_c(bool next_c = false) {
-        auto& lines = buffer.vec();  /// Literally data(vector) of the `TextBuffer buffer`
+        auto& bufdata = buffer.vec();  /// Literally data(vector) of the `TextBuffer buffer`
         if (next_c) {
             if (bufx < (buffer.str(bufy).size())) {
                 buffer.remove(bufx, bufy);
             }
             else if (flex>=Flex::DYNAMIC && (ln()<buffer.line_count-1)) {
                 log "Delete(next_c): it's start of the line, delete + concat line\n";
-                const string del_line = lines[bufy+1];
+                const string del_line = bufdata[bufy+1];
                 // gotoln(ln());
                 this->line_home();
-                this->step(lines[bufy].size());
-                lines[bufy].append(del_line);
-                lines.erase(lines.begin()+bufy+1);
+                this->step(bufdata[bufy].size());
+                bufdata[bufy].append(del_line);
+                bufdata.erase(bufdata.begin()+bufy+1);
             }
         }
         // delete character back(backspace key action)
@@ -128,20 +127,20 @@ struct Cursor {
                 this->step(-1);
                 TRY(
                     !buffer.remove(bufx, bufy),
-                    "Couldn't remove!"
+                    "Couldn't remove!\n"
                 );
             } else if (flex>=Flex::DYNAMIC && ln()) {
-                if (lines[bufy].empty()) {
+                if (bufdata[bufy].empty()) {
                     log "Delete: line is empty, deleting line entry!\n";
-                    lines.erase(lines.begin()+bufy);
+                    bufdata.erase(bufdata.begin()+bufy);
                     gotoln(ln()-1);
                     this->line_end();
                 }
                 else if (flex >= Flex::DYNAMIC) {
                     log "Delete: it's start of the line, delete + concat line\n";
-                    const string del_line = lines[bufy];
-                    lines[bufy-1].append(del_line);
-                    lines.erase(lines.begin()+bufy);
+                    const string del_line = bufdata[bufy];
+                    bufdata[bufy-1].append(del_line);
+                    bufdata.erase(bufdata.begin()+bufy);
                     gotoln(ln()-1);
                     this->line_end();
                     this->step(-del_line.size());
@@ -152,13 +151,37 @@ struct Cursor {
 
     // delete previous word or next word if you pass true
     void delete_word(bool next_w=false) {
-        auto& lines = buffer.vec();  /// Literally data(vector) of the `TextBuffer buffer`
-        // IMPL TS
+        auto& bufdata = buffer.vec();  /// Literally data(vector) of the `TextBuffer buffer`
+        if (!next_w && !bufx) {
+            log "delete_word(back): No char left to delete!\n";
+            return;
+        } else if (next_w && (bufx >= bufdata[bufy].size())) {
+            log "delete_word(front): No char left to delete!\n";
+            return;
+        }
+        if (!next_w) {
+            log "Deleting word back\n";
+            CharKind ck = getCharKind(buffer(bufx-1, bufy, false));
+            while ((bufx>0) && (getCharKind(buffer(bufx-1,bufy,false))==ck)) {
+                delete_c();
+            }
+        } else {  // next_w == true
+            log "Deleting word front\n";
+            CharKind ck = getCharKind(buffer(bufx+1, bufy, false));
+            while ((bufx>0) && (getCharKind(buffer(bufx+1,bufy,false))==ck)) {
+                delete_c(true);
+            }
+        }
     }
 
+
+    void reload() {
+
+    }
     void start() {
-
+        reload();
     }
+
 #pragma region LOOP
     void loop() {
         if (keep_size_as_font_size) {
@@ -237,8 +260,11 @@ struct Cursor {
 
         /// CTRL-key bindings
         if (IsKeyDown(KEY_LEFT_CONTROL)) {
-            if (IsKeyPressed(KEY_S)) {
-                if (buffer.fsave(stdfs::current_path())) {
+            if (HasKeyPressing(KEY_BACKSPACE)) {
+                this->delete_word();
+            }
+            else if (IsKeyPressed(KEY_S)) {
+                if (buffer.fsave(stdfs::current_path().string())) {
                     // saved successfully(logging handled by fsave())
                 } else {
                     logx "Some file operation error occured, check out: "

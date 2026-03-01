@@ -20,7 +20,7 @@ int main()
         update();
         BeginDrawing();
         ClearBackground(bg_color);
-        SetWindowTitle(std::to_string(fps).c_str());
+        SetWindowTitle(ftos(fps));
         render();
         EndDrawing();
     }

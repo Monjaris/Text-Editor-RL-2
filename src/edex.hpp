@@ -84,14 +84,17 @@ struct TextBuffer {
         return this->vec()[i];
     }
 
-    char& operator() (uint i, uint j) {
-        size_t vsize = data.size();
-        size_t hsize = data[j].size();
-        if (vsize <= j) {
-            data.resize(j+1);
-        }
-        if (hsize <= i) {
-            data[j].resize(i+1);
+    /// @arg `foolproof` resizes buffer to wanted
+    /// size just to return the char at (i,j)
+    char& operator() (uint i, uint j, bool foolproof=true) {
+        if (foolproof) {
+            if (data.size() <= j)   data.resize(j+1);
+            if (data[j].size() <= i) data[j].resize(i+1);
+        } else {
+            if (j >= data.size() || i >= data[j].size()) {
+                static char null_char = '\0';
+                return null_char;  // safe fallback
+            }
         }
         return data[j][i];
     }
@@ -103,7 +106,7 @@ struct TextBuffer {
     template <typename F>
     void apply_c(F action) {
         for (uint i=0;  i < vec().size();  ++i) {
-            string line = str(i);
+            string& line = str(i);
             for (uint j=0;  j < line.size();  ++j) {
                 action(line[j]);
             }
@@ -160,7 +163,8 @@ struct TextBuffer {
             "number exceeds the bound!\n";
             return false;
         }
-        str(row).get_allocator().deallocate(str(row).data(), str(row).size());
+        vec().erase(vec().begin() + row);
+        return true;
     }
     
     /// @brief Insert character at position (col, row)
@@ -184,6 +188,7 @@ struct TextBuffer {
         const uint steps = c*space_c;
         while (c--)
         {
+            space_c = this->tab_size;
             while (space_c--)
             {
                 if (tabmode==TabMode::TAB) {
@@ -288,13 +293,17 @@ struct TextBuffer {
     }
 
 
+    void reload() {
+        char_width = MeasureTextEx(font, "A", font_size, font_spacing).x;
+    }
+
     void start() {
         vec().resize(1);
         this->font = LoadFontEx(
             font_family, CAST(int, font_size * font_glyph_k+0.5f),
             nullptr, 0
         );
-        char_width = MeasureTextEx(font, "A", font_size, font_spacing).x;
+        this->reload();
     }
 
     void loop(Vec2 _cursor_position, uint _cursor_line_number) {
@@ -318,20 +327,17 @@ struct TextBuffer {
                 linepad.padding + (col * char_width),
                 row * font_size*ln_wh_k
             };
-            if (c==' ' && rendws.enabled)
-            {
+            if (c==' ' && rendws.enabled) {
                 DrawCircle(
                     char_pos.x+2*font_spacing, char_pos.y+font_size/2,
                     rendws.radius, {rendws.r, rendws.g, rendws.b, rendws.alpha}
                 );
-                goto bypass;
+            } else {
+                renderText(
+                    font, c, char_pos, font_clr,
+                    font_size, font_spacing
+                );
             }
-            renderText(
-                font, c, char_pos, font_clr,
-                font_size, font_spacing
-            );
-            bypass:
-            //
         });
 
         renderLines();
