@@ -41,6 +41,28 @@ inline const char* ftos(T x) {
     return __func__;  // as fallback handler
 }
 
+template <typename T>
+inline T clamp(T x, T min, T max) {
+    if (x < min) {
+        return min;
+    }
+    else if (x > max) {
+        return max;
+    }
+    return x;
+}
+
+template <typename T, typename U, typename V>
+inline T clamp(T x, U min, V max) {
+    if (x < min) {
+        return min;
+    }
+    else if (x > max) {
+        return max;
+    }
+    return x;
+}
+
 
 inline bool is_printable(char c) {
     return (c>=' ' && c<='~');
@@ -104,12 +126,12 @@ inline bool isModKeyDown() {
 }
 
 
-inline bool HasKeyPressing(int key) {
+inline bool hasKeyPressing(int key) {
     return IsKeyPressed(key) || IsKeyPressedRepeat(key);
 }
 
 template <bool char_mode>
-inline bool HasKeyPressing(int& out_key) {
+inline bool hasKeyPressing(int& out_key) {
     static_assert(char_mode,
         "This function only suppports to be called with char_mode=true"
     );

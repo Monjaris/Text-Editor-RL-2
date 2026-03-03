@@ -6,6 +6,7 @@ int main()
         FLAG_WINDOW_RESIZABLE
         | FLAG_WINDOW_HIGHDPI
     );
+    SetExitKey(0);
     InitWindow(init_win_w, init_win_h, "");
     if (is_fps_capped) SetTargetFPS(target_fps);
 

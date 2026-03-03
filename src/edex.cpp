@@ -12,14 +12,14 @@ struct Cursor {
 
     Vec2 pos = {0, 0};
 
-    bool keep_size_as_font_size = 0;
+    Vec2 size = {16, 34};
     f32 step_width = 22;
     f32 line_height = step_width * buffer.ln_wh_k;
-    Vec2 size = {16, 34};
+    bool keep_size_as_font_size = false;
+    uint saved_max_bufx = 0;
 
     enum class Flex { RIGID=1, DYNAMIC, ELASTIC };
     Flex flex = Flex::ELASTIC;
-    Flex flex_previous = Flex(0);
 
     /// @brief Get x,y,w,h components as rectangle
     Rect rect() { return {pos.x, pos.y, size.x, size.y}; }
@@ -88,6 +88,10 @@ struct Cursor {
         // Clamp bufx to new line's length
         if (bufx > buffer.str(bufy).size()) {
             bufx = buffer.str(bufy).size();
+        }
+        // Make it apply saved max bufx if flexible
+        if (flex >= Flex::ELASTIC) {
+            bufx = clamp(saved_max_bufx, 0u, buffer.str(bufy).size());
         }
     }
 
@@ -198,17 +202,20 @@ struct Cursor {
         pos.x = buffer.linepad.padding + (bufx * step_width);
         pos.y = (bufy * line_height);
 
-        /// this variable is used via HasKeyPressing<true>(wkey) only
-        int wkey; // well because that function writes into it, then operates
+        if (bufx > saved_max_bufx) {
+            saved_max_bufx = bufx;
+        }
 
+        /// this variable is used via hasKeyPressing<true>(wkey) only
+        int wkey; // well because that function writes into it, then operates
         /// @brief Writing text
-        if (HasKeyPressing<true>(wkey)) {
+        if (hasKeyPressing<true>(wkey)) {
             buffer.insert(wkey, this->bufx, this->bufy);
             this->step(+1);
         }
 
         /// @brief move keys
-        if (HasKeyPressing(KEY_RIGHT) && inside_r()) {
+        if (hasKeyPressing(KEY_RIGHT) && inside_r()) {
             if (chexist_r()) {
                 this->step();
             } else if (flex >= Flex::DYNAMIC && ln()+1 < buffer.line_count) {
@@ -216,7 +223,7 @@ struct Cursor {
                 this->gotoln(ln()+1);
                 this->line_home();
             }
-        } else if (HasKeyPressing(KEY_LEFT)) {
+        } else if (hasKeyPressing(KEY_LEFT)) {
             if (chexist_l()) {
                 this->step(-1);
             } else if (flex >= Flex::DYNAMIC && ln()) {
@@ -224,31 +231,33 @@ struct Cursor {
                 this->gotoln(ln()-1);
                 this->line_end();
             }
-        } else if (HasKeyPressing(KEY_UP)) {
+        } else if (hasKeyPressing(KEY_UP)) {
             if (inside_u()) {
                 this->gotoln(ln()-1);
             } else if (flex >= Flex::DYNAMIC) {  // there is no text above cursor
                 log "Unwrapped to EOL\n";
                 this->line_home();
+                this->saved_max_bufx = 0;
             }
-        } else if (HasKeyPressing(KEY_DOWN)) {
+        } else if (hasKeyPressing(KEY_DOWN)) {
             if (buffer.line_count > ln()+1) {
                 this->gotoln(ln()+1);
             } else if (flex >= Flex::DYNAMIC) {  // there is no text below cursor
                 log "Unwrapped to BOL\n";
                 this->line_end();
+                this->saved_max_bufx = 0;
             }
         }
 
         /// @brief deleting text
-        if (HasKeyPressing(KEY_BACKSPACE)) {
+        if (hasKeyPressing(KEY_BACKSPACE)) {
             if (isCtrlDown(true, true)) {  // CTRL+<-
                 this->delete_word();
             } else if (not isModKeyDown()) {
                 this->delete_c();
             }
         }  // Delete characters in reversed direction
-        else if (HasKeyPressing(KEY_DELETE)) {
+        else if (hasKeyPressing(KEY_DELETE)) {
             if (isCtrlDown(true ,true)) {  // CTRL+DEL
                 this->delete_word(true);
             } else if (not isModKeyDown()) {
@@ -257,7 +266,7 @@ struct Cursor {
         }
 
         /// @brief line breaking with enter key
-        if (HasKeyPressing(KEY_ENTER)) {
+        if (hasKeyPressing(KEY_ENTER)) {
             log "Line break: (" << bufx << ", " << bufy << ")\n";
             string& line = buffer.str(ln());
             string leftstr = line.substr(bufx);
@@ -266,15 +275,21 @@ struct Cursor {
             bufx = 0; ++bufy;
         }
 
-        if (HasKeyPressing(KEY_TAB)) {
+        if (hasKeyPressing(KEY_TAB)) {
             this->step(buffer.insert_tab(bufx, bufy));
         }
 
 
-        if (IsKeyPressed(KEY_S)) {
+        if (hasKeyPressing(KEY_Q)) {
+            if (isCtrlDown(true, true)) {  // Ctrl+Q
+                log "Exiting EDEX\n";
+                std::exit(EXIT_SUCCESS);
+            }
+        }
+        else if (hasKeyPressing(KEY_S)) {
             if (isCtrlDown(true, true)) {  // CTRL+S
                 TRY(buffer.save(stdfs::current_path().string()),
-                    log "Saving buffer couldn't done!\n";
+                    log "Saving buffer couldn't done\n";
                 );
             }
         }

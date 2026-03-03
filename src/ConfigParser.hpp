@@ -1,9 +1,7 @@
 #pragma once
 #include "utils.h"
-#include "Tab.hpp"
 
-struct Editor
+struct ConfigParser
 {
-
+    
 };
-

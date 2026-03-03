@@ -41,3 +41,18 @@ using strview = std::string_view;
 using Vec2 = Vector2;
 using Rect = Rectangle;
 
+void setup();
+void update();
+void render();
+
+constexpr inline f32 init_win_w = 1280;
+constexpr inline f32 init_win_h = 720;
+inline f32 win_w = init_win_w;
+inline f32 win_h = init_win_h;
+inline Color bg_color = {0, 0, 0, 255};
+inline int target_fps = 60;
+inline int is_fps_capped = false;
+inline f32 fps, dt = 0;
+inline Font font_buf;
+inline Font font_ui;
+
