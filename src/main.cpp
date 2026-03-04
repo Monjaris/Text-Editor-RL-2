@@ -11,20 +11,23 @@ int main()
     if (is_fps_capped) SetTargetFPS(target_fps);
 
     std::cout << "\033[37m";  // Set terminal font color white
-    setup();
-    while (!WindowShouldClose())
+
+    Editor editor;
+    editor.Start();
+    while (!WindowShouldClose() && !app_should_close)
     {
         fps = GetFPS();
         dt = GetFrameTime();
         win_w = GetScreenWidth();
         win_h = GetScreenHeight();
-        update();
+        editor.Loop();
         BeginDrawing();
         ClearBackground(bg_color);
         SetWindowTitle(ftos(fps));
-        render();
+        editor.Render();
         EndDrawing();
     }
+    editor.Cleanup();
 
     std::cout << "\n\n\e[0m";  // Reset terminal font color
     CloseWindow();

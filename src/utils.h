@@ -1,10 +1,9 @@
 #pragma once
 #include "core.h"
-#include "edex.hpp"
 
-bool isCtrlDown(bool not_alt=false, bool not_shift=false);
-bool isAltDown(bool not_ctrl=false, bool not_shift=false);
-bool isShiftDown(bool not_ctrl=false, bool not_alt=false);
+bool isCtrlDown(bool not_alt=true, bool not_shift=true);
+bool isAltDown(bool not_ctrl=true, bool not_shift=true);
+bool isShiftDown(bool not_ctrl=true, bool not_alt=true);
 
 inline const char* ctos(char ch) {
     static thread_local char buf[2] = {0};
@@ -80,12 +79,12 @@ inline bool is_symbol(char c, bool include_ws=true) {
 
 inline bool isCtrlDown(bool not_alt, bool not_shift) {
     if (not_alt) {
-        if (isAltDown()) {
+        if (IsKeyDown(KEY_LEFT_ALT) || IsKeyDown(KEY_RIGHT_ALT)) {
             return false;
         }
     }
     if (not_shift) {
-        if (isShiftDown()) {
+        if (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)) {
             return false;
         }
     }
@@ -94,12 +93,12 @@ inline bool isCtrlDown(bool not_alt, bool not_shift) {
 
 inline bool isAltDown(bool not_ctrl, bool not_shift) {
     if (not_ctrl) {
-        if (isCtrlDown()) {
+        if (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) {
             return false;
         }
     }
     if (not_shift) {
-        if (isShiftDown()) {
+        if (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)) {
             return false;
         }
     }
@@ -108,12 +107,12 @@ inline bool isAltDown(bool not_ctrl, bool not_shift) {
 
 inline bool isShiftDown(bool not_ctrl, bool not_alt) {
     if (not_ctrl) {
-        if (isCtrlDown()) {
+        if (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) {
             return false;
         }
     }
     if (not_alt) {
-        if (isAltDown()) {
+        if (IsKeyDown(KEY_LEFT_ALT) || IsKeyDown(KEY_RIGHT_ALT)) {
             return false;
         }
     }
@@ -121,8 +120,9 @@ inline bool isShiftDown(bool not_ctrl, bool not_alt) {
 }
 
 inline bool isModKeyDown() {
-    return isCtrlDown() ||
-    isAltDown() || isShiftDown();
+    return IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)
+        || IsKeyDown(KEY_LEFT_ALT)     || IsKeyDown(KEY_RIGHT_ALT)
+        || IsKeyDown(KEY_LEFT_SHIFT)   || IsKeyDown(KEY_RIGHT_SHIFT);
 }
 
 

@@ -28,7 +28,7 @@
 #define CAST(type, value)  (static_cast<type>(value))
 #define FEQ(flt1, flt2)  (std::fabsf(flt1 - flt2) < 0.01f)  // f1==f2 is unprecise
 
-#define EDEX_DEFAULT_BUFFER_FONT "assets/fonts/JetBrainsMono/JetBrainsMono-Regular.ttf"
+#define EDEX_DEFAULT_BUFFER_FONT "/home/ziya/dev/gfx/edex/assets/fonts/JetBrainsMono/JetBrainsMono-Regular.ttf"
 #define EDEX_DEFAULT_UI_FONT "assets/fonts/InterVariable/InterVariable.ttf"
 #define EDEX_DEFAULT_BUFFER_NAME "file.edex.cc"
 #define EDEX_FONT_SIZE_MIN 2
@@ -41,9 +41,6 @@ using strview = std::string_view;
 using Vec2 = Vector2;
 using Rect = Rectangle;
 
-void setup();
-void update();
-void render();
 
 constexpr inline f32 init_win_w = 1280;
 constexpr inline f32 init_win_h = 720;
@@ -55,4 +52,6 @@ inline int is_fps_capped = false;
 inline f32 fps, dt = 0;
 inline Font font_buf;
 inline Font font_ui;
+// Application-level requested-close flag. Set to true to request a clean shutdown
+inline bool app_should_close = false;
 

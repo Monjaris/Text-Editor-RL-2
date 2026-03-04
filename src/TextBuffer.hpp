@@ -3,7 +3,7 @@
 
 struct TextBuffer {
     std::string name = EDEX_DEFAULT_BUFFER_NAME;
-    std::string cwd = "./";
+    std::string cwd = "";
     std::vector<string> data{};
     bool readonly = false;
 
@@ -70,7 +70,7 @@ struct TextBuffer {
 
     /// @arg `foolproof` resizes buffer to wanted
     /// size just to return the char at (i,j)
-    char& operator() (uint i, uint j, bool foolproof=true) {
+    char& get(uint i, uint j, bool foolproof=true) {
         if (foolproof) {
             if (data.size() <= j)   data.resize(j+1);
             if (data[j].size() <= i) data[j].resize(i+1);
@@ -295,6 +295,7 @@ struct TextBuffer {
         for (string line; std::getline(file, line);) {
             this->data.push_back(line);
         }
+        this->line_count = this->data.size();
         return true;
     }
 
@@ -307,6 +308,10 @@ struct TextBuffer {
 
     void start() {
         vec().resize(1);
+        log "CWD: " << stdfs::current_path().string() << "\n";
+        log "Font path: " << font_family << "\n";
+        log "Font exists: " << stdfs::exists(font_family) << "\n";
+
         this->font = LoadFontEx(
             font_family, CAST(int, font_size * font_glyph_k+0.5f),
             nullptr, 0
@@ -320,7 +325,7 @@ struct TextBuffer {
         line_count = this->vec().size();
     }
 
-    void draw()
+    void render()
     {
         // Draw background
         DrawRectangle(
